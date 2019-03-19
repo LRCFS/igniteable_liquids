@@ -54,23 +54,23 @@ p10.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,13], dat[,15], dat[,
 p10.m = mungeData(p10.dat, name='10pc')
 
 # 25% weathered
-p25.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,21], dat[,23], dat[,25])
+p25.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,20], dat[,22], dat[,24])
 p25.m = mungeData(p25.dat, name='25pc')
 
 # 50% weathered
-p50.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,28], dat[,30], dat[,32])
+p50.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,27], dat[,29], dat[,31])
 p50.m = mungeData(p50.dat, name='50pc')
 
 # 75% weathered
-p75.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,35], dat[,37], dat[,39])
+p75.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,34], dat[,36], dat[,38])
 p75.m = mungeData(p75.dat, name='75pc')
 
 # 90% weathered
-p90.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,42], dat[,44], dat[,46])
+p90.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,41], dat[43], dat[,45])
 p90.m = mungeData(p90.dat, name='90pc')
 
 # 95% weathered
-p95.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,49], dat[,51], dat[,53])
+p95.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,48], dat[,50], dat[,52])
 p95.m = mungeData(p50.dat, name='95pc')
 
 
