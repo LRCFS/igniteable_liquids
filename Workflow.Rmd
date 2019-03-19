@@ -81,8 +81,11 @@ all.dat$RT = factor(all.dat$RT, levels=sort(as.numeric(levels(all.dat$RT))))
 
 ```{r plot, fig.height=7}
 
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
 ggplot(all.dat, aes(x=RT, y=Area, colour=Sample)) + 
   geom_point() + 
+  scale_colour_manual(values = cbbPalette) +
   coord_flip()
 
 ```
@@ -136,6 +139,7 @@ ggplot(all.se, aes(x=RT, y=Area, colour=Sample)) +
   geom_errorbar(aes(ymin=Area-se, ymax=Area+se), width=.1) +
   #geom_line() 
   geom_point() +
+  scale_colour_manual(values = cbbPalette) +
   #coord_flip() +
   #facet_grid(. ~ Sample)
   theme(axis.text.x = element_text(angle=90))
