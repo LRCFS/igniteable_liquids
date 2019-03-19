@@ -50,39 +50,29 @@ mungeData = function(x, name='Data', norm=FALSE) {
 # and reduce precision to 2 d.p.
 RTnames = factor(round(dat$RT..4, digits=2), levels=sort(round(as.numeric(dat$RT..4), digits=2)))
 
-# neat
-neat.dat = data.frame(row.names = RTnames, R1 = dat$AREA1..5, R2 = dat$AREA2..7, R3 = dat$AREA3..9)
-neat.m = mungeData(neat.dat, name='Neat')
+# extract data from spreadsheet and label appropriately
+weathered = c('Neat','10', '25', '50', '75', '90', '95')
+col = 5
+all.dat = data.frame()
+for (w in weathered) {
+  # read triplicate readings for set of RTs
+  samp = data.frame(row.names = RTnames, dat[,col], dat[,col+2], dat[,col+4])
+  print(head(samp))
+  # process data and label
+  samp.m = mungeData(samp, name = sprintf("%spc", w))
+  if (nrow(all.dat) == 0) {
+    # if first iteration, just assign the data
+    # otherwise...
+    all.dat = samp.m
+  } else {
+    # ...append to the bottom of the data.frame
+    all.dat = rbind(all.dat, samp.m)
+  }
+  # increment column index
+  col = col + 7
+}
 
-# 10% weathered
-p10.dat = data.frame(row.names = RTnames, dat[,13], dat[,15], dat[,17])
-p10.m = mungeData(p10.dat, name='10pc')
-
-# 25% weathered
-p25.dat = data.frame(row.names = RTnames, dat[,20], dat[,22], dat[,24])
-p25.m = mungeData(p25.dat, name='25pc')
-
-# 50% weathered
-p50.dat = data.frame(row.names = RTnames, dat[,27], dat[,29], dat[,31])
-p50.m = mungeData(p50.dat, name='50pc')
-
-# 75% weathered
-p75.dat = data.frame(row.names = RTnames, dat[,34], dat[,36], dat[,38])
-p75.m = mungeData(p75.dat, name='75pc')
-
-# 90% weathered
-p90.dat = data.frame(row.names = RTnames, dat[,41], dat[43], dat[,45])
-p90.m = mungeData(p90.dat, name='90pc')
-
-# 95% weathered
-p95.dat = data.frame(row.names = RTnames, dat[,48], dat[,50], dat[,52])
-p95.m = mungeData(p50.dat, name='95pc')
-
-
-
-# combine
-all.dat = rbind(neat.m, p10.m, p25.m, p50.m, p75.m, p90.m, p95.m)
-#all.dat = rbind(neat.m, p10.m, p25.m)
+# fix ordering of RT factor
 all.dat$RT = factor(all.dat$RT, levels=sort(as.numeric(levels(all.dat$RT))))
 
 
