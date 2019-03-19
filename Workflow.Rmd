@@ -1,0 +1,91 @@
+---
+title: "Medium Petroleum Distillates"
+author: "Chris Cole"
+date: "19/03/2019"
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = TRUE)
+library(readxl)
+library(reshape2)
+library(ggplot2)
+```
+
+## Read Data
+
+Read in the data from the original Excel spreadsheet and reformat the data to
+be more usable down the line.
+
+Starting with only B & Q White Spirit.
+
+```{r data}
+# Read first spreadsheet in Excel file - need to use edited one.
+dat = read_excel('dat/ALL MPD DATA MATRIX edit.xlsx', sheet = 'BnQ WS', n_max=74, skip=1)
+
+# function to label and melt the data. 
+# Optionally normalise relative to internal standard
+mungeData = function(x, name='Data', norm=FALSE) {
+  if (norm) {
+    # internal standard is the first peak
+    its = as.vector(unlist(x[1,]))
+    # normalise all peaks to their internal standard
+    x = x / rep(its, each=nrow(x))
+  }
+  # explicitly label the retention times
+  # as a column - needed by melt
+  names(x) = c('R1','R2','R3')
+  x = cbind(RT = rownames(x), x)
+  # melt the data
+  x.m = melt(x, value.name = 'Area')
+  # add a name 
+  x.m = cbind(x.m, Sample = rep(name, nrow(x.m)))
+  return(x.m)
+}
+
+# multiple datasets are on the same sheet
+# extract them as independent sets
+# neat
+neat.dat = data.frame(row.names = as.factor(dat$RT..4), R1 = dat$AREA1..5, R2 = dat$AREA2..7, R3 = dat$AREA3..9)
+neat.m = mungeData(neat.dat, name='Neat')
+
+# 10% weathered
+p10.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,13], dat[,15], dat[,17])
+p10.m = mungeData(p10.dat, name='10pc')
+
+# 25% weathered
+p25.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,21], dat[,23], dat[,25])
+p25.m = mungeData(p25.dat, name='25pc')
+
+# 50% weathered
+p50.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,28], dat[,30], dat[,32])
+p50.m = mungeData(p50.dat, name='50pc')
+
+# 75% weathered
+p75.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,35], dat[,37], dat[,39])
+p75.m = mungeData(p75.dat, name='75pc')
+
+# 90% weathered
+p90.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,42], dat[,44], dat[,46])
+p90.m = mungeData(p90.dat, name='90pc')
+
+# 95% weathered
+p95.dat = data.frame(row.names = as.factor(dat$RT..4), dat[,49], dat[,51], dat[,53])
+p95.m = mungeData(p50.dat, name='95pc')
+
+
+
+# combine
+all.dat = rbind(neat.m, p10.m, p25.m, p50.m, p75.m, p90.m, p95.m)
+
+
+```
+
+
+```{r plot}
+
+ggplot(all.dat, aes(x=RT, y=Area, colour=Sample)) + 
+  geom_point() + 
+  coord_flip()
+
+```
