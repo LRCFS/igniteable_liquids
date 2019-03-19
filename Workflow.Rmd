@@ -146,3 +146,24 @@ ggplot(all.se, aes(x=RT, y=Area, colour=Sample)) +
 
 
 ```
+
+```{r varplot}
+
+# 'unmelt' the data
+# recast with RT rows and variable+Sample columns
+all.cast = dcast(all.dat, RT~variable+Sample, value.var ="Area")
+rownames(all.cast) = all.cast$RT
+all.cast = all.cast[, -1]
+# calc variance for each RT peak
+all.var = apply(all.cast, 1, var, na.rm = TRUE)
+all.var = data.frame(RT = names(all.var), Variance = all.var)
+all.var$RT = factor(all.var$RT, levels=sort(as.numeric(levels(all.var$RT))))
+
+# plot
+ggplot(all.var, aes(x=RT, y=Variance)) + 
+  geom_point() + 
+  theme(axis.text.x = element_text(angle = 90)) +
+  ggtitle("Peak Area Variance")
+
+
+```
