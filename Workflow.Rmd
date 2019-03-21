@@ -60,7 +60,7 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
     )
 
     # Rename the "mean" column    
-    datac <- rename(datac, c("mean" = measurevar))
+    datac <- plyr::rename(datac, c("mean" = measurevar))
 
     datac$se <- datac$sd / sqrt(datac$N)  # Calculate standard error of the mean
 
@@ -218,16 +218,26 @@ for (sheet in sheets) {
 #all.dat$RT = as.numeric(as.character(all.dat$RT))
 #RT.df = data.frame(RT = as.numeric(RTlevels))
 #jn=difference_full_join(RT.df, all.dat, by = 'RT', max_dist=0.03)
+all.dat.m = melt(all.dat,id.vars = c('RT'), value.name = 'Area')
+sample.facts = strsplit(as.character(all.dat.m$variable), '_')
+ids = data.frame(Manu = unlist(lapply(sample.facts, '[', 1)), Sample = unlist(lapply(sample.facts, '[', 2)), Rep = unlist(lapply(sample.facts, '[', 3)))
 
-
+all.dat.m = data.frame(RT=all.dat.m$RT, ids, Area=all.dat.m$Area)
+head(all.dat.m)
 ```
 
 
 ```{r plot, fig.height=7}
 
+# better, colourblind friendly colour scheme
 cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
 
-ggplot(all.dat, aes(x=RT, y=Area, colour=Sample)) + 
+# TODO - Only look at 'Bertonline' data for now
+new.dat = all.dat.m[all.dat.m$Manu == "Bertoline",]
+new.dat$RT = factor(new.dat$RT)
+#head(new.dat)
+# plot
+ggplot(new.dat, aes(x=RT, y=Area, colour=Sample)) + 
   geom_point() + 
   scale_colour_manual(values = cbbPalette) +
   coord_flip()
@@ -236,14 +246,15 @@ ggplot(all.dat, aes(x=RT, y=Area, colour=Sample)) +
 
 ```{r summarise}
 
-
-all.se = summarySE(all.dat, measurevar = "Area", groupvars = c('Sample','RT'))
+# generate summary statistics of peaks areas
+all.se = summarySE(new.dat, measurevar = "Area", groupvars = c('Sample','RT'))
 head(all.se)
 
 ```
 
 ```{r summplot, fig.width=9}
 
+# plot mean data + errors
 ggplot(all.se, aes(x=RT, y=Area, colour=Sample)) +
   geom_errorbar(aes(ymin=Area-se, ymax=Area+se), width=.1) +
   #geom_line() 
@@ -256,19 +267,15 @@ ggplot(all.se, aes(x=RT, y=Area, colour=Sample)) +
 
 ```
 
-```{r varplot}
+```{r varplot, fig.width=8}
 
-# 'unmelt' the data
-# recast with RT rows and variable+Sample columns
-all.cast = dcast(all.dat, RT~variable+Sample, value.var ="Area")
-rownames(all.cast) = all.cast$RT
-all.cast = all.cast[, -1]
 # calc variance for each RT peak
-all.var = apply(all.cast, 1, var, na.rm = TRUE)
-all.var = data.frame(RT = names(all.var), Variance = all.var)
-all.var$RT = factor(all.var$RT, levels=sort(as.numeric(levels(all.var$RT))))
+# TODO - Currently only for the 'BnQ' data
+all.var = apply(all.dat[,2:22], 1, var, na.rm = TRUE)
+all.var = data.frame(RT = all.dat[,1], Variance = all.var)
+all.var$RT = factor(all.var$RT)
 
-# plot
+# plot - peak area variance data
 ggplot(all.var, aes(x=RT, y=Variance)) + 
   geom_point() + 
   theme(axis.text.x = element_text(angle = 90)) +
@@ -277,10 +284,9 @@ ggplot(all.var, aes(x=RT, y=Variance)) +
 
 ```
 
-```{r}
+```{r echo=FALSE, eval=FALSE}
 
-df = data.frame(name=rep(c('bob','alice'), each=3), yr= rep(c('2016','2017','2018'), each=2))
-
+### PLAYGROUND ###
 RTlevels = vector()
 sheets = c('BnQ WS', 'Bertoline', 'Homebase WS')
 for (sheet in sheets) {
