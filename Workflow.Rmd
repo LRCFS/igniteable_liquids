@@ -142,7 +142,7 @@ for (sheet in sheets) {
 
   # get the RT column and reduce precision to 2 d.p.
   # Simpler for plotting
-  RTs = round(dat$RT..4, digits=2)
+  RTs = round(dat$RT...4, digits=2)
   RT.df = data.frame(RT = RTs)
   
   if (length(RTlevels) == 0) {
@@ -168,8 +168,8 @@ for (sheet in sheets) {
   
   # ensure RT are in the right order for factor
   # and reduce precision to 2 d.p.
-  RTnames = factor(round(dat$RT..4, digits=2),
-                   levels=sort(round(as.numeric(dat$RT..4), digits=2)))
+  RTnames = factor(round(dat$RT...4, digits=2),
+                   levels=sort(round(as.numeric(dat$RT...4), digits=2)))
   
   # extract data from spreadsheet and label appropriately
   weathered = c('Neat','10', '25', '50', '75', '90', '95')
@@ -284,67 +284,48 @@ ggplot(all.var, aes(x=RT, y=log10(Variance))) +
 
 ```
 
-```{r echo=FALSE, eval=FALSE}
 
-### PLAYGROUND ###
-RTlevels = vector()
-sheets = c('BnQ WS', 'Bertoline', 'Homebase WS')
-for (sheet in sheets) {
-
-  # Read first spreadsheet in Excel file - need to use edited one.
-  dat = read_excel('dat/ALL MPD DATA MATRIX edit.xlsx', sheet = sheet, n_max=108, skip=1)
-  
-  
-  # multiple datasets are on the same sheet
-  # extract them as independent sets
-  
-  # ensure RT are in the right order for factor
-  # and reduce precision to 2 d.p.
-  RTs = round(dat$RT..4, digits=2)
-  RT.df = data.frame(RT = RTs)
-  
-  if (length(RTlevels) == 0) {
-    df = data.frame(RT = RTlevels)
-  } else {
-    df = data.frame(RT = RTlevels)
-  }
-  jn = difference_full_join(df, RT.df, by ='RT', max_dist=0.03)
-  jn[is.na(jn$RT.x),1] <- jn[is.na(jn$RT.x), 'RT.y']
-  RTlevels = levels(factor(jn$RT.x))
-}
-
-
-min(RTs[2:length(RTs)] - RTs[1:(length(RTs)-1)], na.rm = TRUE)
-
-
-# fix factor as numeric
-RTnames.bert = as.numeric(as.character(RTnames.bert))
-RTnames.bnq = as.numeric(as.character(RTnames.bnq))
-# convert to df
-RTnames.bnq = data.frame(RT = RTnames.bnq, num =1)
-RTnames.bert = data.frame(RT = RTnames.bert, num =2)
-# join on RT where the RT difference is ≤ 0.03
-jnd = difference_full_join(RTnames.bert, RTnames.bnq, by = 'RT', max_dist = 0.03 )
-head(jnd)
-# add missing RTs in x by those in y.
-jnd[is.na(jnd$RT.x),1] <- jnd[is.na(jnd$RT.x), 'RT.y']
-
-RTlevels = levels(factor(jnd$RT.x))
-```
 
 ```{r rf}
 library(randomForest)
 # do random forest training
 set.seed(12345)
 train <- sample(nrow(all.dat.m), 0.7*nrow(all.dat.m), replace = FALSE)
-TrainSet <- all.dat.m[train,]
-ValidSet <- all.dat.m[-train,]
+TrainSet <- all.dat.m[train,-4]
+ValidSet <- all.dat.m[-train,-4]
+TrainSet[is.na(TrainSet$Area),'Area'] <- 0
+ValidSet[is.na(ValidSet$Area),'Area'] <- 0
 summary(TrainSet)
 summary(ValidSet)
 
 # do training
 model1 <- randomForest(Manu ~ ., data = TrainSet, ntree = 500, mtry = 6, importance = TRUE)
 model1
+varImpPlot(model1)
+```
 
+```{r}
+# try caret - not really any better
+library(caret)
+library(randomForest)
+library(e1071)
 
+control <- trainControl(method="cv", number=7, search = 'random')
+metric = 'Accuracy'
+tunegrid <- expand.grid(.mtry=seq(5,25,by = 2))
+
+# random forest
+rf_default <- train(Manu~., data=TrainSet, method="rf", metric=metric, tuneGrid=tunegrid, trControl=control, tuneLength = 10)
+rf_default
+plot(rf_default)
+```
+
+```{r}
+library(naivebayes)
+
+tunegrid <- expand.grid(usekernel = TRUE, laplace = c(0,0.2,0.5), adjust = c(0.5, 1, 1.5))
+# naive bayes
+nb_default = train(Manu~., data=TrainSet, method="naive_bayes",metric=metric, tuneGrid=tunegrid, trControl=control, tuneLength = 10)
+nb_default
+plot(nb_default)
 ```
