@@ -330,6 +330,21 @@ head(jnd)
 jnd[is.na(jnd$RT.x),1] <- jnd[is.na(jnd$RT.x), 'RT.y']
 
 RTlevels = levels(factor(jnd$RT.x))
+```
+
+```{r rf}
+library(randomForest)
+# do random forest training
+set.seed(12345)
+train <- sample(nrow(all.dat.m), 0.7*nrow(all.dat.m), replace = FALSE)
+TrainSet <- all.dat.m[train,]
+ValidSet <- all.dat.m[-train,]
+summary(TrainSet)
+summary(ValidSet)
+
+# do training
+model1 <- randomForest(Manu ~ ., data = TrainSet, ntree = 500, mtry = 6, importance = TRUE)
+model1
 
 
 ```
