@@ -107,7 +107,6 @@ for (sheet in sheets) {
   for (w in weathered) {
     # read triplicate readings for set of RTs
     samp = data.frame(row.names = RTnames, dat[,col], dat[,col+2], dat[,col+4])
-    print(head(samp))
     # process data and label
     samp.m = mungeData(samp, name = sprintf("%spc", w))
     if (nrow(all.dat) == 0) {
@@ -236,18 +235,19 @@ cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2"
 new.dat = all.dat.m[all.dat.m$Manu == "Bertoline",]
 new.dat$RT = factor(new.dat$RT)
 #head(new.dat)
+all.dat.m$RT = factor(all.dat.m$RT)
 # plot
-ggplot(new.dat, aes(x=RT, y=Area, colour=Sample)) + 
+ggplot(all.dat.m, aes(x=RT, y=Area, colour=Sample)) + 
   geom_point() + 
   scale_colour_manual(values = cbbPalette) +
-  coord_flip()
+  facet_grid(Manu ~ .)
 
 ```
 
 ```{r summarise}
 
 # generate summary statistics of peaks areas
-all.se = summarySE(new.dat, measurevar = "Area", groupvars = c('Sample','RT'))
+all.se = summarySE(all.dat.m, measurevar = "Area", groupvars = c('Manu','Sample','RT'))
 head(all.se)
 
 ```
@@ -262,24 +262,24 @@ ggplot(all.se, aes(x=RT, y=Area, colour=Sample)) +
   scale_colour_manual(values = cbbPalette) +
   #coord_flip() +
   #facet_grid(. ~ Sample)
-  theme(axis.text.x = element_text(angle=90))
+  theme(axis.text.x = element_text(angle=90)) +
+  facet_grid(Manu ~ .)
 
 
 ```
 
 ```{r varplot, fig.width=8}
 
-# calc variance for each RT peak
-# TODO - Currently only for the 'BnQ' data
-all.var = apply(all.dat[,2:22], 1, var, na.rm = TRUE)
+# calc variance for each RT peak across all data
+all.var = apply(all.dat[,-1], 1, var, na.rm = TRUE)
 all.var = data.frame(RT = all.dat[,1], Variance = all.var)
 all.var$RT = factor(all.var$RT)
 
 # plot - peak area variance data
-ggplot(all.var, aes(x=RT, y=Variance)) + 
+ggplot(all.var, aes(x=RT, y=log10(Variance))) + 
   geom_point() + 
   theme(axis.text.x = element_text(angle = 90)) +
-  ggtitle("Peak Area Variance")
+  ggtitle("Peak Area Variance - all data")
 
 
 ```
