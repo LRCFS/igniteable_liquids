@@ -7,22 +7,14 @@ output: html_document
 
 ```{r setup, include=FALSE}
 knitr::opts_chunk$set(echo = TRUE)
+
+## Libraries
 library(readxl)
 library(reshape2)
 library(ggplot2)
-```
+library(fuzzyjoin)
 
-## Read Data
-
-Read in the data from the original Excel spreadsheet and reformat the data to
-be more usable down the line.
-
-Starting with only B & Q White Spirit.
-
-```{r data}
-# Read first spreadsheet in Excel file - need to use edited one.
-dat = read_excel('dat/ALL MPD DATA MATRIX edit.xlsx', sheet = 'BnQ WS', n_max=74, skip=1)
-
+## functions
 # function to label and melt the data. 
 # Optionally normalise relative to internal standard
 mungeData = function(x, name='Data', norm=FALSE) {
@@ -43,55 +35,8 @@ mungeData = function(x, name='Data', norm=FALSE) {
   return(x.m)
 }
 
-# multiple datasets are on the same sheet
-# extract them as independent sets
-
-# ensure RT are in the right order for factor
-# and reduce precision to 2 d.p.
-RTnames = factor(round(dat$RT..4, digits=2), levels=sort(round(as.numeric(dat$RT..4), digits=2)))
-
-# extract data from spreadsheet and label appropriately
-weathered = c('Neat','10', '25', '50', '75', '90', '95')
-col = 5
-all.dat = data.frame()
-for (w in weathered) {
-  # read triplicate readings for set of RTs
-  samp = data.frame(row.names = RTnames, dat[,col], dat[,col+2], dat[,col+4])
-  print(head(samp))
-  # process data and label
-  samp.m = mungeData(samp, name = sprintf("%spc", w))
-  if (nrow(all.dat) == 0) {
-    # if first iteration, just assign the data
-    # otherwise...
-    all.dat = samp.m
-  } else {
-    # ...append to the bottom of the data.frame
-    all.dat = rbind(all.dat, samp.m)
-  }
-  # increment column index
-  col = col + 7
-}
-
-# fix ordering of RT factor
-all.dat$RT = factor(all.dat$RT, levels=sort(as.numeric(levels(all.dat$RT))))
-
-
-```
-
-
-```{r plot, fig.height=7}
-
-cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
-
-ggplot(all.dat, aes(x=RT, y=Area, colour=Sample)) + 
-  geom_point() + 
-  scale_colour_manual(values = cbbPalette) +
-  coord_flip()
-
-```
-
-```{r summarise}
-
+# function to summarise data by s.d., s.e. and c.i.
+# - taken from the R Graphics Cookbook
 summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
                       conf.interval=.95, .drop=TRUE) {
     library(plyr)
@@ -127,6 +72,170 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
 
     return(datac)
 }
+
+```
+
+## Read Data
+
+Read in the data from the original Excel spreadsheet and reformat the data to
+be more usable down the line.
+
+Starting with only B & Q White Spirit.
+
+```{r data, eval = FALSE, echo=FALSE}
+
+# read all the data
+sheets = c('Bertoline', 'BnQ WS')
+for (sheet in sheets) {
+
+  # Read first spreadsheet in Excel file - need to use edited one.
+  dat = read_excel('dat/ALL MPD DATA MATRIX edit.xlsx', sheet = sheet, n_max=108, skip=1)
+  
+  
+  # multiple datasets are on the same sheet
+  # extract them as independent sets
+  
+  # ensure RT are in the right order for factor
+  # and reduce precision to 2 d.p.
+  RTnames = factor(round(dat$RT..4, digits=2),
+                   levels=sort(round(as.numeric(dat$RT..4), digits=2)))
+  
+  # extract data from spreadsheet and label appropriately
+  weathered = c('Neat','10', '25', '50', '75', '90', '95')
+  col = 5
+  all.dat = data.frame()
+  for (w in weathered) {
+    # read triplicate readings for set of RTs
+    samp = data.frame(row.names = RTnames, dat[,col], dat[,col+2], dat[,col+4])
+    print(head(samp))
+    # process data and label
+    samp.m = mungeData(samp, name = sprintf("%spc", w))
+    if (nrow(all.dat) == 0) {
+      # if first iteration, just assign the data
+      # otherwise...
+      all.dat = samp.m
+    } else {
+      # ...append to the bottom of the data.frame
+      all.dat = rbind(all.dat, samp.m)
+    }
+    # increment column index
+    col = col + 7
+  }
+  
+  # fix ordering of RT factor
+  all.dat$RT = factor(all.dat$RT, levels=sort(as.numeric(levels(all.dat$RT))))
+}
+
+
+
+```
+
+```{r refactdata}
+
+# first pass read of spreadsheets to get full list
+# of RTs to create master list in RTlevels
+RTlevels = vector()
+sheets = c('BnQ WS', 'Bertoline', 'Homebase WS', 'Tesco WS')
+for (sheet in sheets) {
+
+  # Read the spreadsheet in Excel file.
+  dat = read_excel('dat/ALL MPD DATA MATRIX edit.xlsx', sheet = sheet, n_max=108, skip=1)
+
+  # get the RT column and reduce precision to 2 d.p.
+  # Simpler for plotting
+  RTs = round(dat$RT..4, digits=2)
+  RT.df = data.frame(RT = RTs)
+  
+  if (length(RTlevels) == 0) {
+    df = data.frame(RT = RTlevels)
+  } else {
+    df = data.frame(RT = RTlevels)
+  }
+  jn = difference_full_join(df, RT.df, by ='RT', max_dist=0.03)
+  jn[is.na(jn$RT.x),1] <- jn[is.na(jn$RT.x), 'RT.y']
+  RTlevels = as.numeric(levels(factor(jn$RT.x)))
+}
+
+
+# now read all the data
+all.dat = data.frame()
+for (sheet in sheets) {
+
+  # Read first spreadsheet in Excel file - need to use edited one.
+  dat = read_excel('dat/ALL MPD DATA MATRIX edit.xlsx', sheet = sheet, n_max=108, skip=1)
+  
+  # multiple datasets are on the same sheet
+  # extract them as independent sets
+  
+  # ensure RT are in the right order for factor
+  # and reduce precision to 2 d.p.
+  RTnames = factor(round(dat$RT..4, digits=2),
+                   levels=sort(round(as.numeric(dat$RT..4), digits=2)))
+  
+  # extract data from spreadsheet and label appropriately
+  weathered = c('Neat','10', '25', '50', '75', '90', '95')
+  col = 5
+  samp.dat = data.frame()
+  for (w in weathered) {
+    # read triplicate readings for set of RTs
+    samp = data.frame(row.names = RTnames, dat[,col], dat[,col+2], dat[,col+4])
+    # label columns by product_sample_rep
+    names(samp) = paste0(sprintf("%s_%s_r", sheet, w), seq(1, 3))
+    print(head(samp))
+
+    if (nrow(samp.dat) == 0) {
+      # if first iteration, just assign the data
+      # otherwise...
+      samp.dat = samp
+    } else {
+      # ...append the columns to the data.frame
+      samp.dat = cbind(samp.dat, samp)
+    }
+    # increment column index
+    col = col + 7
+  }
+  # add row names as new RT column
+  samp.dat = data.frame(RT = as.numeric(rownames(samp.dat)), samp.dat)
+  # do a fuzzy join on RTs 
+  samp.jn = difference_full_join(RT.df, samp.dat, by = 'RT', max_dist=0.03)
+  # remove exta RT col
+  samp.jn = samp.jn[,-2]
+  # rename remaining RT col - currently called 'RT.x'
+  n = names(samp.jn)
+  n = n[-1]
+  n = c('RT', n)
+  
+  # store as new data or merge with existing
+  if (nrow(all.dat) == 0) {
+    all.dat = samp.dat
+  } else {
+    all.dat = merge(all.dat, samp.dat, by = 'RT')
+  }
+  
+}
+
+#all.dat = data.frame(RT = rownames(all.dat), all.dat)
+#all.dat$RT = as.numeric(as.character(all.dat$RT))
+#RT.df = data.frame(RT = as.numeric(RTlevels))
+#jn=difference_full_join(RT.df, all.dat, by = 'RT', max_dist=0.03)
+
+
+```
+
+
+```{r plot, fig.height=7}
+
+cbbPalette <- c("#000000", "#E69F00", "#56B4E9", "#009E73", "#F0E442", "#0072B2", "#D55E00", "#CC79A7")
+
+ggplot(all.dat, aes(x=RT, y=Area, colour=Sample)) + 
+  geom_point() + 
+  scale_colour_manual(values = cbbPalette) +
+  coord_flip()
+
+```
+
+```{r summarise}
+
 
 all.se = summarySE(all.dat, measurevar = "Area", groupvars = c('Sample','RT'))
 head(all.se)
@@ -164,6 +273,57 @@ ggplot(all.var, aes(x=RT, y=Variance)) +
   geom_point() + 
   theme(axis.text.x = element_text(angle = 90)) +
   ggtitle("Peak Area Variance")
+
+
+```
+
+```{r}
+
+df = data.frame(name=rep(c('bob','alice'), each=3), yr= rep(c('2016','2017','2018'), each=2))
+
+RTlevels = vector()
+sheets = c('BnQ WS', 'Bertoline', 'Homebase WS')
+for (sheet in sheets) {
+
+  # Read first spreadsheet in Excel file - need to use edited one.
+  dat = read_excel('dat/ALL MPD DATA MATRIX edit.xlsx', sheet = sheet, n_max=108, skip=1)
+  
+  
+  # multiple datasets are on the same sheet
+  # extract them as independent sets
+  
+  # ensure RT are in the right order for factor
+  # and reduce precision to 2 d.p.
+  RTs = round(dat$RT..4, digits=2)
+  RT.df = data.frame(RT = RTs)
+  
+  if (length(RTlevels) == 0) {
+    df = data.frame(RT = RTlevels)
+  } else {
+    df = data.frame(RT = RTlevels)
+  }
+  jn = difference_full_join(df, RT.df, by ='RT', max_dist=0.03)
+  jn[is.na(jn$RT.x),1] <- jn[is.na(jn$RT.x), 'RT.y']
+  RTlevels = levels(factor(jn$RT.x))
+}
+
+
+min(RTs[2:length(RTs)] - RTs[1:(length(RTs)-1)], na.rm = TRUE)
+
+
+# fix factor as numeric
+RTnames.bert = as.numeric(as.character(RTnames.bert))
+RTnames.bnq = as.numeric(as.character(RTnames.bnq))
+# convert to df
+RTnames.bnq = data.frame(RT = RTnames.bnq, num =1)
+RTnames.bert = data.frame(RT = RTnames.bert, num =2)
+# join on RT where the RT difference is ≤ 0.03
+jnd = difference_full_join(RTnames.bert, RTnames.bnq, by = 'RT', max_dist = 0.03 )
+head(jnd)
+# add missing RTs in x by those in y.
+jnd[is.na(jnd$RT.x),1] <- jnd[is.na(jnd$RT.x), 'RT.y']
+
+RTlevels = levels(factor(jnd$RT.x))
 
 
 ```
