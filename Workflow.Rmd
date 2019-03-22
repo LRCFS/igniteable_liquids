@@ -13,6 +13,11 @@ library(readxl)
 library(reshape2)
 library(ggplot2)
 library(fuzzyjoin)
+library(caret)
+library(randomForest)
+library(e1071)
+library(naivebayes)
+
 
 ## functions
 # function to label and melt the data. 
@@ -286,11 +291,8 @@ model1
 varImpPlot(model1)
 ```
 
-```{r eval=FALSE, echo=FALSE}
+```{r rfdv}
 # try caret - not really any better
-library(caret)
-library(randomForest)
-library(e1071)
 
 control <- trainControl(method="cv", number=7, search = 'random')
 metric = 'Accuracy'
@@ -304,8 +306,7 @@ plot(rf_default)
 
 And then naive bayes predictions. 
 
-```{r}
-library(naivebayes)
+```{r nbcv}
 
 tunegrid <- expand.grid(usekernel = TRUE, laplace = c(0,0.2,0.5), adjust = c(0.5, 1, 1.5))
 # naive bayes
