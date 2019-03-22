@@ -80,54 +80,9 @@ summarySE <- function(data=NULL, measurevar, groupvars=NULL, na.rm=FALSE,
 Read in the data from the original Excel spreadsheet and reformat the data to
 be more usable down the line.
 
-Starting with only B & Q White Spirit.
+Specifically look at B & Q White spirit, Bertoline, Homebase White Spirit and Tesco White Spirit.
 
-```{r data, eval = FALSE, echo=FALSE}
-
-# read all the data
-sheets = c('Bertoline', 'BnQ WS')
-for (sheet in sheets) {
-
-  # Read first spreadsheet in Excel file - need to use edited one.
-  dat = read_excel('dat/ALL MPD DATA MATRIX edit.xlsx', sheet = sheet, n_max=108, skip=1)
-  
-  
-  # multiple datasets are on the same sheet
-  # extract them as independent sets
-  
-  # ensure RT are in the right order for factor
-  # and reduce precision to 2 d.p.
-  RTnames = factor(round(dat$RT..4, digits=2),
-                   levels=sort(round(as.numeric(dat$RT..4), digits=2)))
-  
-  # extract data from spreadsheet and label appropriately
-  weathered = c('Neat','10', '25', '50', '75', '90', '95')
-  col = 5
-  all.dat = data.frame()
-  for (w in weathered) {
-    # read triplicate readings for set of RTs
-    samp = data.frame(row.names = RTnames, dat[,col], dat[,col+2], dat[,col+4])
-    # process data and label
-    samp.m = mungeData(samp, name = sprintf("%spc", w))
-    if (nrow(all.dat) == 0) {
-      # if first iteration, just assign the data
-      # otherwise...
-      all.dat = samp.m
-    } else {
-      # ...append to the bottom of the data.frame
-      all.dat = rbind(all.dat, samp.m)
-    }
-    # increment column index
-    col = col + 7
-  }
-  
-  # fix ordering of RT factor
-  all.dat$RT = factor(all.dat$RT, levels=sort(as.numeric(levels(all.dat$RT))))
-}
-
-
-
-```
+First, issue is to get all the peak rentention times (RT) that are consistent across all the liquids.
 
 ```{r refactdata}
 
@@ -142,7 +97,7 @@ for (sheet in sheets) {
 
   # get the RT column and reduce precision to 2 d.p.
   # Simpler for plotting
-  RTs = round(dat$RT...4, digits=2)
+  RTs = round(dat$RT..4, digits=2)
   RT.df = data.frame(RT = RTs)
   
   if (length(RTlevels) == 0) {
@@ -154,8 +109,12 @@ for (sheet in sheets) {
   jn[is.na(jn$RT.x),1] <- jn[is.na(jn$RT.x), 'RT.y']
   RTlevels = as.numeric(levels(factor(jn$RT.x)))
 }
+```
 
 
+Then, get the actual data for the required sheets.
+
+```{r alldata}
 # now read all the data
 all.dat = data.frame()
 for (sheet in sheets) {
@@ -168,8 +127,8 @@ for (sheet in sheets) {
   
   # ensure RT are in the right order for factor
   # and reduce precision to 2 d.p.
-  RTnames = factor(round(dat$RT...4, digits=2),
-                   levels=sort(round(as.numeric(dat$RT...4), digits=2)))
+  RTnames = factor(round(dat$RT..4, digits=2),
+                   levels=sort(round(as.numeric(dat$RT..4), digits=2)))
   
   # extract data from spreadsheet and label appropriately
   weathered = c('Neat','10', '25', '50', '75', '90', '95')
@@ -180,7 +139,7 @@ for (sheet in sheets) {
     samp = data.frame(row.names = RTnames, dat[,col], dat[,col+2], dat[,col+4])
     # label columns by product_sample_rep
     names(samp) = paste0(sprintf("%s_%s_r", sheet, w), seq(1, 3))
-    print(head(samp))
+    # print(head(samp))
 
     if (nrow(samp.dat) == 0) {
       # if first iteration, just assign the data
@@ -212,20 +171,30 @@ for (sheet in sheets) {
   }
   
 }
+head(str(all.dat))
+```
 
-#all.dat = data.frame(RT = rownames(all.dat), all.dat)
-#all.dat$RT = as.numeric(as.character(all.dat$RT))
-#RT.df = data.frame(RT = as.numeric(RTlevels))
-#jn=difference_full_join(RT.df, all.dat, by = 'RT', max_dist=0.03)
+'Melt' the data.
+
+```{r meltdata}
+# melt the data 
 all.dat.m = melt(all.dat,id.vars = c('RT'), value.name = 'Area')
+# split the data features from the column names
 sample.facts = strsplit(as.character(all.dat.m$variable), '_')
+# ... and create as new factors
 ids = data.frame(Manu = unlist(lapply(sample.facts, '[', 1)), Sample = unlist(lapply(sample.facts, '[', 2)), Rep = unlist(lapply(sample.facts, '[', 3)))
 
+# combine
 all.dat.m = data.frame(RT=all.dat.m$RT, ids, Area=all.dat.m$Area)
 head(all.dat.m)
 ```
 
 
+## Plotting
+
+Let's plot some data.
+
+All data including replicates
 ```{r plot, fig.height=7}
 
 # better, colourblind friendly colour scheme
@@ -244,6 +213,11 @@ ggplot(all.dat.m, aes(x=RT, y=Area, colour=Sample)) +
 
 ```
 
+
+## Statistical Summary
+
+Using great function from the R Graphics Cookbook. Very important link if you don't have it.
+
 ```{r summarise}
 
 # generate summary statistics of peaks areas
@@ -251,6 +225,8 @@ all.se = summarySE(all.dat.m, measurevar = "Area", groupvars = c('Manu','Sample'
 head(all.se)
 
 ```
+
+
 
 ```{r summplot, fig.width=9}
 
@@ -263,7 +239,8 @@ ggplot(all.se, aes(x=RT, y=Area, colour=Sample)) +
   #coord_flip() +
   #facet_grid(. ~ Sample)
   theme(axis.text.x = element_text(angle=90)) +
-  facet_grid(Manu ~ .)
+  facet_grid(Manu ~ .) + 
+  ggtitle("RT Mean Peak Areas")
 
 
 ```
@@ -285,6 +262,11 @@ ggplot(all.var, aes(x=RT, y=log10(Variance))) +
 ```
 
 
+## Build Models
+
+Let's do some model building and predictions.
+
+First RandomForest.
 
 ```{r rf}
 library(randomForest)
@@ -304,7 +286,7 @@ model1
 varImpPlot(model1)
 ```
 
-```{r}
+```{r eval=FALSE, echo=FALSE}
 # try caret - not really any better
 library(caret)
 library(randomForest)
@@ -319,6 +301,8 @@ rf_default <- train(Manu~., data=TrainSet, method="rf", metric=metric, tuneGrid=
 rf_default
 plot(rf_default)
 ```
+
+And then naive bayes predictions. 
 
 ```{r}
 library(naivebayes)
